@@ -9,7 +9,7 @@ SETUP
 
 Required secrets (.streamlit/secrets.toml locally, or your host's secrets panel):
 
-    ANTHROPIC_API_KEY = "sk-ant-..."
+    ANTHROPIC_API_KEY = "sk-ant-usr-1lu...lQAA"
 
 HOW THE "NO REFRESH LOOPHOLE" WORKS
 -----------------------------------
