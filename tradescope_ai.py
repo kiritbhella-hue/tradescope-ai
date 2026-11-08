@@ -511,6 +511,55 @@ def oidc_provider() -> str | None:
     return None
 
 
+def auth_config_problems() -> list[str]:
+    """Plain-English problems with the [auth] secrets. Never includes secret values."""
+    try:
+        auth = st.secrets["auth"]
+    except Exception:
+        return ["There is no [auth] section in your secrets."]
+
+    def val(src, key: str) -> str:
+        try:
+            return str(src[key]).strip() if key in src else ""
+        except Exception:
+            return ""
+
+    prov = oidc_provider()
+    cfg = auth[prov] if prov else auth
+    cid, csec, meta = val(cfg, "client_id"), val(cfg, "client_secret"), val(cfg, "server_metadata_url")
+    redirect, cookie = val(auth, "redirect_uri"), val(auth, "cookie_secret")
+    fake = re.compile(r"x{4,}|your-app-url|replace-with|\.\.\.|changeme", re.I)
+
+    problems: list[str] = []
+    if not cid:
+        problems.append("client_id is missing. This is the most common cause of Google's '400. That's an error' page.")
+    elif fake.search(cid) or not cid.endswith(".apps.googleusercontent.com") or re.search(r"\s", cid):
+        problems.append(
+            "client_id doesn't look like a real Google client ID. It should be a long value ending in "
+            ".apps.googleusercontent.com, with no spaces. Copy it again from Google Cloud Console."
+        )
+    if not csec or fake.search(csec):
+        problems.append("client_secret is missing or still a placeholder.")
+    if not redirect:
+        problems.append("redirect_uri is missing.")
+    elif fake.search(redirect) or re.search(r"\s", redirect):
+        problems.append("redirect_uri still has a placeholder or contains spaces. Use your real app address.")
+    elif not redirect.startswith(("http://", "https://")) or not redirect.endswith("/oauth2callback"):
+        problems.append("redirect_uri must start with http:// or https:// and end with /oauth2callback.")
+    if not cookie or fake.search(cookie):
+        problems.append("cookie_secret is missing or still a placeholder. Use any long random string.")
+    if not meta:
+        problems.append("server_metadata_url is missing. For Google it is "
+                        "https://accounts.google.com/.well-known/openid-configuration")
+    elif "accounts.google.com" not in meta:
+        problems.append("server_metadata_url doesn't point at Google.")
+    try:
+        import authlib  # noqa: F401
+    except ImportError:
+        problems.append("The Authlib package isn't installed. Add Authlib>=1.3.2 to requirements.txt.")
+    return problems
+
+
 def password_login_allowed() -> bool:
     default = "false" if oidc_configured() else "true"
     return str(get_secret("ALLOW_PASSWORD_LOGIN", default)).strip().lower() in ("1", "true", "yes", "on")
@@ -1692,7 +1741,15 @@ def render_login() -> None:
             unsafe_allow_html=True,
         )
         shown = False
-        if oidc_configured():
+        problems = auth_config_problems() if oidc_configured() else []
+        if oidc_configured() and problems:
+            shown = True
+            st.error("Google sign-in isn't set up correctly yet, so the button is switched off.")
+            with st.expander("Owner setup help (what to fix)", expanded=True):
+                for item in problems:
+                    st.markdown(f"- {item}")
+                st.caption("Fix these in your secrets, then reload this page. No secret values are shown here.")
+        elif oidc_configured():
             shown = True
             prov = oidc_provider()
             if prov:
@@ -1773,7 +1830,8 @@ def upgrade_button(email: str, label: str = "Go Pro: unlimited proposals") -> No
 def owner_checks() -> list[tuple[str, bool, str]]:
     persistent_hint = f"Database file: {DB_PATH}. Make sure this path is on persistent storage."
     return [
-        ("Google login configured", oidc_configured(), "Add an [auth] section to secrets."),
+        ("Google login configured", oidc_configured() and not auth_config_problems(),
+         "Open the login page while signed out to see exactly what to fix."),
         ("Password login is off (recommended)", not password_login_allowed(),
          "Turn off with ALLOW_PASSWORD_LOGIN=false once Google login works."),
         ("Anthropic API key set", bool(get_api_key()), "Set ANTHROPIC_API_KEY."),
