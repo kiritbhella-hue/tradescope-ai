@@ -45,7 +45,7 @@ from reportlab.platypus import (
 # Configuration
 # ===========================================================================
 APP_NAME = "TradeScope AI"
-DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+DEFAULT_MODEL = "claude-sonnet-5-5"
 NOTES_MARKER = "<<<CONTRACTOR_NOTES>>>"
 PAYMENT_MARKER = "[[PAYMENT_TABLE]]"
 
