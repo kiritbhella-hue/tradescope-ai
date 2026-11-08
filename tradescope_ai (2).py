@@ -1319,7 +1319,7 @@ def plans_dialog(aid: str) -> None:
             st.rerun()
         return
 
-    link = get_secret("STRIPE_PAYMENT_LINK", "https://buy.stripe.com/5kQeVe2e0bWk9yQ8Q2es000")
+    link = get_secret("STRIPE_PAYMENT_LINK")
     if link:
         st.link_button("Subscribe with card", link, type="primary", use_container_width=True)
         st.caption("After checkout you receive an activation code. Enter it below.")
