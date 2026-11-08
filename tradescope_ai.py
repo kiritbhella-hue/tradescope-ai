@@ -1509,6 +1509,24 @@ CSS = """
 #MainMenu, footer{visibility:hidden; height:0;}
 .block-container{max-width:1280px; padding-top:1.2rem; padding-bottom:4rem;}
 
+/* ---------- keep everything readable even if the browser/app is in dark mode ---------- */
+:root, .stApp{color-scheme:light;}
+.stApp, .stApp [data-testid="stMarkdownContainer"] p, .stApp [data-testid="stMarkdownContainer"] li{color:var(--ink);}
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p{color:var(--steel) !important;}
+[data-testid="stExpander"] summary, [data-testid="stExpander"] details > summary{background:#fff !important; color:var(--ink) !important;}
+[data-testid="stExpander"] summary p, [data-testid="stExpander"] summary span{color:var(--ink) !important;}
+[data-testid="stExpander"] [data-testid="stMarkdownContainer"] p, [data-testid="stExpander"] li{color:var(--ink) !important;}
+[data-testid="stAlert"]{background:#FFF4D6 !important; border:2px solid var(--ink) !important; border-radius:12px !important;}
+[data-testid="stAlert"] p, [data-testid="stAlert"] div, [data-testid="stAlert"] span{color:var(--ink) !important;}
+[data-testid="stAlert"]:has([data-testid="stAlertContentError"]){background:#FFE1DC !important;}
+[data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]){background:#DCEEFF !important;}
+[data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]){background:#C9F2DC !important;}
+button[data-baseweb="tab"] p{color:var(--ink) !important;}
+[data-baseweb="popover"] li, [data-baseweb="menu"], [data-baseweb="popover"] ul{background:#fff !important; color:var(--ink) !important;}
+[data-testid="stFileUploaderDropzone"]{background:#fff !important; border:2px dashed var(--ink) !important; border-radius:12px;}
+[data-testid="stFileUploaderDropzone"] small, [data-testid="stFileUploaderDropzone"] span{color:var(--steel) !important;}
+.whoami, .meter, .sticker, .paywall, .ts-chip{color:var(--ink);}
+
 /* ---------- sticker cards ---------- */
 .sticker{background:#fff; border:2.5px solid var(--ink); border-radius:16px; box-shadow:5px 5px 0 var(--ink); padding:1rem 1.2rem;}
 .sticker.yellow{background:var(--tape-hot);} .sticker.mint{background:var(--mint);} .sticker.sky{background:var(--sky);}
@@ -1744,8 +1762,13 @@ def render_login() -> None:
         problems = auth_config_problems() if oidc_configured() else []
         if oidc_configured() and problems:
             shown = True
-            st.error("Google sign-in isn't set up correctly yet, so the button is switched off.")
-            with st.expander("Owner setup help (what to fix)", expanded=True):
+            if password_login_allowed():
+                st.info("Google sign-in isn't connected yet. No problem: use your email and a password below.")
+                help_open = False
+            else:
+                st.error("Google sign-in isn't set up correctly yet, so the button is switched off.")
+                help_open = True
+            with st.expander("Owner setup help (what to fix)", expanded=help_open):
                 for item in problems:
                     st.markdown(f"- {item}")
                 st.caption("Fix these in your secrets, then reload this page. No secret values are shown here.")
@@ -1760,7 +1783,7 @@ def render_login() -> None:
                           on_click=st.login, key="google_login")
         if password_login_allowed():
             shown = True
-            if oidc_configured():
+            if oidc_configured() and not problems:
                 st.caption("or use an email and password")
             tab_in, tab_up = st.tabs(["Log in", "Create account"])
             with tab_in:
